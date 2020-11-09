@@ -1,4 +1,4 @@
-# elastic_interaction_based_loss
+# Elastic Interaction-based Loss
 Code for "An Elastic Interaction-Based Loss Function for Medical Image Segmentation" in MICCAI'2020 (https://arxiv.org/abs/2007.02663)
 
 Framework: Pytorch >= 0.4.1
