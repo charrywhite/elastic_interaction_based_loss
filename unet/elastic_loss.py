@@ -81,7 +81,10 @@ class EnergyLoss(nn.Module):
 class EnergylossFunc(Function):
     '''
     target: ground truth 
-    feat: prob of class vessel -0.5, prob of class vessel from softmax output of unet 
+    feat: Z -0.5. Z：prob of your target class(here is vessel) with shape[B,H,W]. 
+    Z from softmax output of unet with shape [B,C,H,W]. C: number of classes
+    alpha: default 0.35
+    sigma: default 0.25
     '''
     @staticmethod
     def forward(ctx,cuda,feat_levelset,target,alpha,sigma,Gaussian = False):
