@@ -86,7 +86,7 @@ class EnergyLoss(nn.Module):
 class EnergylossFunc(Function):
     '''
     target: ground truth 
-    feat: Z -0.5. Z：prob of your target class(here is vessel) with shape[B,1,H,W]. 
+    feat: Z -0.5. Z：prob of your target class(here is vessel) with shape[B,H,W]. 
     Z from softmax output of unet with shape [B,C,H,W]. C: number of classes
     alpha: default 0.35
     sigma: default 0.25
