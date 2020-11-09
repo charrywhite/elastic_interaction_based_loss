@@ -18,6 +18,8 @@ torch.backends.cudnn.deterministic = True
 
 def odd_flip(H):
     '''
+    generate frequency map. 
+    
     when height or width of image is odd number,
     creat a array concol [0,1,...,int(H/2)+1,int(H/2),...,0]
     len(concol) = H
@@ -30,6 +32,8 @@ def odd_flip(H):
 
 def even_flip(H):
     '''
+    generate frequency map. 
+    
     when height or width of image is even number,
     creat a array concol [0,1,...,int(H/2),int(H/2),...,0]
     len(concol) = H
@@ -79,21 +83,13 @@ class EnergyLoss(nn.Module):
     def forward(self,feat,label):
         return self.energylossfunc(self.cuda,feat, label,self.alpha,self.sigma)
     
-class EnergyLoss(nn.Module):
-    def __init__(self,cuda,alpha,sigma):
-        super(EnergyLoss, self).__init__()
-        self.energylossfunc = EnergylossFunc.apply
-        self.alpha = alpha
-        self.cuda = cuda
-        self.sigma = sigma
-
-    def forward(self,feat,label):
-        return self.energylossfunc(self.cuda,feat, label,self.alpha,self.sigma)
-    
 class EnergylossFunc(Function):
     '''
     target: ground truth 
-    feat: prob of class vessel -0.5, prob of class vessel from softmax output of unet 
+    feat: Z -0.5. Z：prob of your target class(here is vessel) with shape[B,1,H,W]. 
+    Z from softmax output of unet with shape [B,C,H,W]. C: number of classes
+    alpha: default 0.35
+    sigma: default 0.25
     '''
     @staticmethod
     def forward(ctx,cuda,feat,target,alpha,sigma,Gaussian = False):
