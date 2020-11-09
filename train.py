@@ -10,6 +10,7 @@ from unet.model import Model
 from unet.utils import MetricList
 from unet.metrics import jaccard_index, f1_score, LogNLLLoss
 from unet.dataset import JointTransform2D, ImageToImage2D, Image2D
+from unet.elastic_loss import EnergyLoss
 
 parser = ArgumentParser()
 parser.add_argument('--train_dataset', required=True, type=str)
