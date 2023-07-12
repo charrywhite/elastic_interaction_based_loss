@@ -15,8 +15,9 @@ To train your model, run the following command:
 ```bash
 python train.py --train_dataset '/your_training_data_path' --test_dataset '/your_test_data' --save_path '/save_model_path'
 ```
-
 You can also specify other arguments such as batch size, learning rate, number of epochs, etc. See `train.py` for more details.
+
+If you want to customize your Dataset: modify the ImageToImage2D in ./unet/dataset.py. 
 
 The elastic interaction loss file is located in `./unet` folder. You can import it and use it as a custom loss function for your segmentation model.
 
@@ -36,9 +37,7 @@ If you find this code useful, please cite our paper:
   volume       = {12265},
   pages        = {755--764},
   publisher    = {Springer},
-  year         = {2020},
-  url          = {https://doi.org/10.1007/978-3-030-59722-1\_73},
-  doi          = {10.1007/978-3-030-59722-1\_73},
+  year         = {2020}
 }
 ```
 
