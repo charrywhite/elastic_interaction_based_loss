@@ -10,106 +10,82 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.autograd.function import Function
+import matplotlib.pyplot as plt
 
 torch.backends.cudnn.deterministic = True
 
-def odd_flip(H):
-    '''
-    generate frequency map
-    when height or width of image is odd number,
-    creat a array concol [0,1,...,int(H/2)+1,int(H/2),...,0]
-    len(concol) = H
-    '''
-    m = int(H/2)
+
+def general_flip(H):
+    m = (H-1)//2
+    n = H//2
     col = np.arange(0,m+1)
-    flipcol = col[m-1::-1]
+    flipcol = -1*np.flip(np.arange(1,n+1))
     concol = np.concatenate((col,flipcol),0)
     return concol
-
-def even_flip(H):
-    '''
-    generate frequency map
-    when height or width of image is even number,
-    creat a array concol [0,1,...,int(H/2),int(H/2),...,0]
-    len(concol) = H
-    '''
-    m = int(H/2)
-    col = np.arange(0,m)
-    flipcol = col[m::-1]
-    concol = np.concatenate((col,flipcol),0)
-    return concol
-
+    
 def dist(target):
     '''
     sqrt(m^2 + n^2) in eq(8)
     '''
 
     _,_,H,W = target.shape
+    concol = general_flip(H)
+    conrow = general_flip(W)
 
-    if H%2 ==1:
-        concol = odd_flip(H)
-    else:
-        concol = even_flip(H)
-        
-    if W%2 == 1:
-        conrow = odd_flip(W)
-    else:
-        conrow = even_flip(W)
-        
     m_col = concol[:,np.newaxis] 
     m_row = conrow[np.newaxis,:]
     dist = np.sqrt(m_col*m_col + m_row*m_row) # sqrt(m^2+n^2)
   
-    use_cuda = torch.cuda.is_available()
-    if use_cuda:
+    if torch.cuda.is_available():
         dist_ = torch.from_numpy(dist).float().cuda()
     else:
         dist_ = torch.from_numpy(dist).float()
     return dist_
 
 class EnergyLoss(nn.Module):
-    def __init__(self,cuda,alpha,sigma):
+    def __init__(self,alpha):
         super(EnergyLoss, self).__init__()
         self.energylossfunc = EnergylossFunc.apply
         self.alpha = alpha
-        self.cuda = cuda
-        self.sigma = sigma
+        # self.sigma = sigma
 
     def forward(self,feat,label):
-        return self.energylossfunc(self.cuda,feat, label,self.alpha,self.sigma)
+        return self.energylossfunc(feat, label)
+    
+class EnergyLoss(nn.Module):
+    def __init__(self,alpha):
+        super(EnergyLoss, self).__init__()
+        self.energylossfunc = EnergylossFunc.apply
+        self.alpha = alpha
+
+    def forward(self,feat,label):
+        return self.energylossfunc(0.5-feat, 0.5-label,self.alpha)
     
 class EnergylossFunc(Function):
     '''
     target: ground truth 
-    feat: Z -0.5. Z：prob of your target class(here is vessel) with shape[B,H,W]. 
-    Z from softmax output of unet with shape [B,C,H,W]. C: number of classes
-    alpha: default 0.35
-    sigma: default 0.25
+    feat: prob of class vessel -0.5, prob of class vessel from softmax output of unet 
     '''
     @staticmethod
-    def forward(ctx,cuda,feat_levelset,target,alpha,sigma,Gaussian = False):
-        hardtanh = nn.Hardtanh(min_val=0, max_val=1, inplace=False)
+    def forward(ctx,feat_levelset,target,alpha):
         target = target.float()
         index_ = dist(target)
+        # print(type(index_))
         dim_ = target.shape[1]
         target = torch.squeeze(target,1)
-        I1 = target + alpha*hardtanh(feat_levelset/sigma) # G_t + alpha*H(phi) in eq(5)
-        dmn = torch.rfft(I1,2,normalized = True, onesided = False)
-        dmn_r = dmn[:,:,:,0] # dmn's real part
-        dmn_i = dmn[:,:,:,1] # dmm's imagine part
-        dmn2 = dmn_r * dmn_r + dmn_i * dmn_i # dmn^2
-
+        # G_t + alpha*H(phi) in eq(5)
+        dmn = torch.fft.fftn(input =(target + alpha*(feat_levelset)),norm = 'ortho')
+        dmn2 = (dmn.abs())**2 #dmn_r * dmn_r + dmn_i * dmn_i # dmn^2
+    
         ctx.save_for_backward(feat_levelset,target,dmn,index_)
             
         F_energy = torch.sum(index_*dmn2)/feat_levelset.shape[0]/feat_levelset.shape[1]/feat_levelset.shape[2] # eq(8)
-        
         return F_energy
 
     @staticmethod
     def backward(ctx,grad_output):
         feature,label,dmn,index_ = ctx.saved_tensors
-        index_ = torch.unsqueeze(index_,0)
-        index_ = torch.unsqueeze(index_,3)
+        index_ = index_.unsqueeze(0).unsqueeze(1)
         F_diff = -0.5*index_*dmn # eq(9) 
-        diff = torch.irfft(F_diff,2,normalized = True, onesided = False)/feature.shape[0] # eq
-        return None,Variable(-grad_output*diff),None,None,None
+        diff = torch.fft.ifftn(input = F_diff, norm = 'ortho').real/feature.shape[0]
+        return Variable(-grad_output*diff),None,None,None
