@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from skimage import io
 
 from time import time
-
-from utils import chk_mkdir, Logger, MetricList
-from dataset import ImageToImage2D, Image2D
+import torch.nn.functional as f
+from .utils import chk_mkdir, Logger, MetricList
+from .dataset import ImageToImage2D, Image2D
 
 
 class Model:
@@ -90,18 +90,11 @@ class Model:
 
         for batch_idx, (X_batch, y_batch, *rest) in enumerate(DataLoader(dataset, batch_size=n_batch, shuffle=shuffle)):
 
-            X_batch = Variable(X_batch.to(device=self.device))
-            y_batch = Variable(y_batch.to(device=self.device))
-
-            # training
+            X_batch = X_batch.to(device=self.device)
+            y_batch = y_batch.to(device=self.device)
             self.optimizer.zero_grad()
             y_out = self.net(X_batch)
-            # print(y_out.shape)
-
-            score1 = y_out[:,0,:,:] # prob for class target
-            score2 = (score1-0.5) # for energyloss
-
-            training_loss = self.loss(score2, y_batch)
+            training_loss = self.loss(y_out[:,0,:,:], y_batch)
             training_loss.backward()
             self.optimizer.step()
             epoch_running_loss += training_loss.item()
@@ -132,25 +125,21 @@ class Model:
         self.net.train(False)
         metric_list.reset()
         running_val_loss = 0.0
+        with torch.no_grad():
+            for batch_idx, (X_batch, y_batch, *rest) in enumerate(DataLoader(dataset, batch_size=n_batch)):
 
-        for batch_idx, (X_batch, y_batch, *rest) in enumerate(DataLoader(dataset, batch_size=n_batch)):
+                X_batch = X_batch.to(device=self.device)
+                y_batch = y_batch.to(device=self.device)
 
-            X_batch = Variable(X_batch.to(device=self.device))
-            y_batch = Variable(y_batch.to(device=self.device))
+                y_out = self.net(X_batch)
+                training_loss = self.loss(y_out[:,0,:,:], y_batch)
+                running_val_loss += training_loss.item()
+                metric_list(y_out, y_batch.squeeze(1).long())
 
-            y_out = self.net(X_batch)
-            # print(y_out.shape)
-            score1 = y_out[:,0,:,:] # prob for class target
-            score2 = (score1-0.5) # for energyloss
+            del X_batch, y_batch
 
-            training_loss = self.loss(score2, y_batch)
-            running_val_loss += training_loss.item()
-            metric_list(y_out, y_batch.squeeze(1))
-
-        del X_batch, y_batch
-
-        logs = {'val_loss': running_val_loss/(batch_idx + 1),
-                **metric_list.get_results(normalize=batch_idx+1)}
+            logs = {'val_loss': running_val_loss/(batch_idx + 1),
+                    **metric_list.get_results(normalize=batch_idx+1)}
 
         return logs
 
@@ -220,7 +209,7 @@ class Model:
                     'memory': torch.cuda.memory_allocated(),
                     **val_logs, **train_logs}
             logger.log(logs)
-            logger.to_csv(os.path.join(self.checkpoint_folder, 'logs.csv'))
+            # logger.to_csv(os.path.join(self.checkpoint_folder, 'logs.csv'))
 
             # saving model and logs
             if save_freq and (epoch_idx % save_freq == 0):
