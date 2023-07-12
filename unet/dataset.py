@@ -120,7 +120,7 @@ class ImageToImage2D(Dataset):
     def __init__(self, dataset_path: str, joint_transform: Callable = None, one_hot_mask: int = False) -> None:
         self.dataset_path = dataset_path
         self.input_path = os.path.join(dataset_path, 'images')
-        self.output_path = os.path.join(dataset_path, 'gt')
+        self.output_path = os.path.join(dataset_path, 'masks') 
         self.images_list = os.listdir(self.input_path)
         self.one_hot_mask = one_hot_mask
 
@@ -134,11 +134,11 @@ class ImageToImage2D(Dataset):
         return len(os.listdir(self.input_path))
 
     def __getitem__(self, idx):
-        image_filename = self.images_list[idx].split('.')[0]
+        image_filename = self.images_list[idx]
         # read image
-        image = io.imread(os.path.join(self.input_path, f'{image_filename}.jpg'))
+        image = io.imread(os.path.join(self.input_path,image_filename))
         # read mask image
-        mask = io.imread(os.path.join(self.output_path, f'{image_filename}_1stHO.png'))
+        mask = io.imread(os.path.join(self.output_path, image_filename))
 
         # correct dimensions if needed
         image, mask = correct_dims(image, mask)
