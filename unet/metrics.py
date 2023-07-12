@@ -17,7 +17,7 @@ class LogNLLLoss(_WeightedLoss):
     def forward(self, y_input, y_target):
         y_input = torch.log(y_input + EPSILON)
         return nll_loss(y_input, y_target, weight=self.weight,
-                             ignore_index=self.ignore_index)
+                             ignore_index=self.ignore_index,reduction='mean')
 
 
 def classwise_iou(output, gt):
@@ -46,7 +46,7 @@ def classwise_f1(output, gt):
     n_classes = output.shape[1]
 
     output = torch.argmax(output, dim=1)
-    print(output.shape)
+#     print(output.shape)
     true_positives = torch.tensor([((output == i) * (gt == i)).sum() for i in range(n_classes)]).float()
     selected = torch.tensor([(output == i).sum() for i in range(n_classes)]).float()
     relevant = torch.tensor([(gt == i).sum() for i in range(n_classes)]).float()
@@ -54,6 +54,7 @@ def classwise_f1(output, gt):
     precision = (true_positives + epsilon) / (selected + epsilon)
     recall = (true_positives + epsilon) / (relevant + epsilon)
     classwise_f1 = 2 * (precision * recall) / (precision + recall)
+    # print(classwise_f1)
 
     return classwise_f1
 
@@ -84,12 +85,13 @@ def make_weighted_metric(classwise_metric):
         classwise_scores = classwise_metric(output, gt).cpu()
 
         return (classwise_scores * weights).sum().item()
+    
 
     return weighted_metric
 
 
-jaccard_index = make_weighted_metric(classwise_iou)
-f1_score = make_weighted_metric(classwise_f1)
+jaccard_index = make_weighted_metric(classwise_iou)#classwise_iou#
+f1_score = make_weighted_metric(classwise_f1)#classwise_f1#
 
 
 if __name__ == '__main__':
