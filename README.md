@@ -17,7 +17,7 @@ python train.py --train_dataset '/your_training_data_path' --test_dataset '/your
 ```
 You can also specify other arguments such as batch size, learning rate, number of epochs, etc. See `train.py` for more details.
 
-If you want to customize your Dataset: modify the ImageToImage2D in ./unet/dataset.py. 
+If you want to customize your Dataset: modify the `ImageToImage2D` in `./unet/dataset.py`. 
 
 The elastic interaction loss file is located in `./unet` folder. You can import it and use it as a custom loss function for your segmentation model.
 
